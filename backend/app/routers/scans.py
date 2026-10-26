@@ -1,3 +1,4 @@
+import json
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -22,14 +23,12 @@ async def list_scans(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    query = select(ScanJob)
-    if scan_status:
-        query = query.where(ScanJob.status == scan_status)
-    if target_id:
-        query = query.where(ScanJob.target_id == target_id)
-    query = query.order_by(ScanJob.created_at.desc()).offset((page - 1) * size).limit(size)
-    result = await db.execute(query)
-    return result.scalars().all()
+    from app.services.scan_service import ScanService
+
+    service = ScanService()
+    return await service.list_scans(
+        {"status": scan_status, "target_id": target_id, "page": page, "size": size}, db
+    )
 
 
 @router.post("/", response_model=ScanJobRead, status_code=status.HTTP_201_CREATED)
@@ -38,17 +37,13 @@ async def create_scan(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "analyst"])),
 ):
-    scan_job = ScanJob(
-        target_id=payload.target_id,
-        scan_type=payload.scan_type,
-        options=payload.options,
-        started_by=current_user.id,
-        status="queued",
-    )
-    db.add(scan_job)
-    await db.flush()
-    # In full implementation, dispatch to Celery worker here
-    return scan_job
+    from app.services.scan_service import ScanService
+
+    service = ScanService()
+    try:
+        return await service.create_scan(payload, current_user, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.get("/{scan_id}", response_model=ScanJobRead)
@@ -79,8 +74,11 @@ async def cancel_scan(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot cancel a scan with status '{scan.status}'",
         )
-    scan.status = "cancelled"
-    await db.flush()
+
+    from app.services.scan_service import ScanService
+
+    service = ScanService()
+    await service.cancel_scan(scan_id, db)
     return {"message": "Scan cancelled"}
 
 
@@ -90,17 +88,14 @@ async def scan_progress_sse(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Server-Sent Events stream for scan progress."""
-    import asyncio
-    import json
-
-    import redis.asyncio as aioredis
-
+    """Server-Sent Events stream for scan progress via Redis pub/sub."""
     from app.config import get_settings
 
     settings = get_settings()
 
     async def event_generator():
+        import redis.asyncio as aioredis
+
         redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
         pubsub = redis_client.pubsub()
         channel = f"scan:{scan_id}:progress"
@@ -110,7 +105,10 @@ async def scan_progress_sse(
                 if message["type"] == "message":
                     yield f"data: {message['data']}\n\n"
                     data = json.loads(message["data"])
-                    if data.get("progress") == 100 or data.get("phase") in ("completed", "failed"):
+                    if data.get("progress") == 100 or data.get("phase") in (
+                        "completed",
+                        "failed",
+                    ):
                         break
         finally:
             await pubsub.unsubscribe(channel)
@@ -126,55 +124,13 @@ async def get_scan_results(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    from sqlalchemy import func
+    from app.services.scan_service import ScanService
 
-    from app.models.asset import Asset
-    from app.models.finding import Finding
-
-    result = await db.execute(select(ScanJob).where(ScanJob.id == scan_id))
-    scan = result.scalar_one_or_none()
-    if not scan:
+    service = ScanService()
+    results = await service.get_scan_results(scan_id, db)
+    if not results:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan job not found")
-
-    assets_count = (
-        await db.execute(select(func.count(Asset.id)).where(Asset.scan_job_id == scan_id))
-    ).scalar_one()
-
-    windows_count = (
-        await db.execute(
-            select(func.count(Asset.id)).where(
-                Asset.scan_job_id == scan_id, Asset.is_windows == True  # noqa: E712
-            )
-        )
-    ).scalar_one()
-
-    findings_result = await db.execute(
-        select(Finding.severity, func.count(Finding.id))
-        .where(Finding.scan_job_id == scan_id)
-        .group_by(Finding.severity)
-    )
-    findings_by_severity = {row[0]: row[1] for row in findings_result}
-
-    type_result = await db.execute(
-        select(Finding.finding_type, func.count(Finding.id))
-        .where(Finding.scan_job_id == scan_id)
-        .group_by(Finding.finding_type)
-    )
-    findings_by_type = {row[0]: row[1] for row in type_result}
-
-    duration = None
-    if scan.started_at and scan.completed_at:
-        duration = (scan.completed_at - scan.started_at).total_seconds()
-
-    return ScanResultsSummary(
-        scan_job_id=scan_id,
-        assets_found=assets_count,
-        windows_assets=windows_count,
-        total_open_ports=0,
-        findings_by_severity=findings_by_severity,
-        findings_by_type=findings_by_type,
-        scan_duration_seconds=duration,
-    )
+    return results
 
 
 @router.get("/{scan_id}/compare/{prev_id}")
@@ -184,24 +140,10 @@ async def compare_scans(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    from app.schemas.scan import ChangeDetectionReport
+    from app.services.change_detection import ChangeDetectionService
 
-    for sid in (scan_id, prev_id):
-        r = await db.execute(select(ScanJob).where(ScanJob.id == sid))
-        if not r.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Scan job {sid} not found",
-            )
-
-    return ChangeDetectionReport(
-        scan_job_id=scan_id,
-        previous_scan_job_id=prev_id,
-        new_findings=[],
-        resolved_findings=[],
-        new_assets=[],
-        removed_assets=[],
-        new_ports=[],
-        closed_ports=[],
-        risk_delta=0.0,
-    )
+    service = ChangeDetectionService()
+    try:
+        return await service.compare_scans(scan_id, prev_id, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
