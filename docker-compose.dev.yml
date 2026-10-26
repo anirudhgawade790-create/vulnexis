@@ -1,0 +1,35 @@
+version: '3.9'
+
+# Local development overrides: only db and redis run in Docker.
+# Backend and frontend run outside Docker with hot reload.
+# Usage: docker-compose -f docker-compose.dev.yml up -d
+
+services:
+  db:
+    image: postgres:17.5-alpine
+    environment:
+      POSTGRES_DB: sih1684
+      POSTGRES_USER: sih1684
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sih1684"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.0-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
