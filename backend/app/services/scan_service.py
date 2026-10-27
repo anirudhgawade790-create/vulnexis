@@ -4,21 +4,42 @@ Scan service: business logic for creating, listing, and managing scan jobs.
 
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+SCAN_QUEUE_ERROR = (
+    "Scan service is unavailable. Confirm Redis and the scan worker are running, then retry."
+)
 
-def _get_run_scan():
-    """
-    Return the run_scan Celery task.
-    Imported lazily so the module can load without a live Celery broker
-    and so tests can patch it via app.workers.scan_tasks.run_scan.
-    """
-    from app.workers.scan_tasks import run_scan as _run_scan
-    return _run_scan
+
+class ScanQueueUnavailableError(RuntimeError):
+    """Raised when a scan cannot be submitted to the worker queue."""
+
+
+def _dispatch_scan(scan_job_id: str):
+    from app.workers.celery_app import celery_app
+    from app.workers.scan_tasks import run_scan
+
+    connection = celery_app.connection_for_write()
+    try:
+        connection.ensure_connection(
+            max_retries=0,
+            interval_start=0,
+            interval_step=0,
+            interval_max=0,
+        )
+        producer = connection.Producer(connection)
+        return run_scan.apply_async(
+            args=[scan_job_id],
+            producer=producer,
+            retry=False,
+        )
+    finally:
+        connection.release()
 
 
 class ScanService:
@@ -53,15 +74,20 @@ class ScanService:
         )
         db.add(scan_job)
         await db.flush()
+        await db.commit()
 
         # Dispatch Celery task
         try:
-            import app.workers.scan_tasks as _tasks
-            task = _tasks.run_scan.delay(scan_job.id)
-            scan_job.celery_task_id = task.id
+            task = _dispatch_scan(scan_job.id)
         except Exception as exc:
-            logger.warning("Failed to dispatch Celery task for scan %s: %s", scan_job.id, exc)
+            logger.exception("Failed to dispatch Celery task for scan %s", scan_job.id)
+            scan_job.status = "failed"
+            scan_job.error_message = SCAN_QUEUE_ERROR
+            scan_job.completed_at = datetime.now(timezone.utc)
+            await db.commit()
+            raise ScanQueueUnavailableError(SCAN_QUEUE_ERROR) from exc
 
+        scan_job.celery_task_id = task.id
         await db.commit()
         await db.refresh(scan_job)
         return scan_job

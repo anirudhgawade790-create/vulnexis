@@ -25,7 +25,7 @@ async def list_targets(
 async def create_target(
     payload: TargetCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "analyst"])),
+    current_user: User = Depends(require_role(["admin"])),
 ):
     target = Target(
         **payload.model_dump(),
@@ -54,7 +54,7 @@ async def update_target(
     target_id: str,
     payload: TargetUpdate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_role(["admin", "analyst"])),
+    _: User = Depends(require_role(["admin"])),
 ):
     result = await db.execute(select(Target).where(Target.id == target_id))
     target = result.scalar_one_or_none()

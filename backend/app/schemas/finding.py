@@ -36,6 +36,10 @@ class FindingStatusUpdate(BaseModel):
     resolution_notes: Optional[str] = None
 
 
+class FindingAssignment(BaseModel):
+    user_id: Optional[str] = None
+
+
 class RemediationDetail(BaseModel):
     finding_id: str
     title: str

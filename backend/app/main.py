@@ -12,6 +12,7 @@ from app.database import async_engine, Base
 from app.routers import (
     auth,
     assets,
+    admin,
     baseline,
     dashboard,
     findings,
@@ -77,6 +78,7 @@ app.add_middleware(
 API_PREFIX = "/api/v1"
 
 app.include_router(auth.router, prefix=API_PREFIX)
+app.include_router(admin.router, prefix=API_PREFIX)
 app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(targets.router, prefix=API_PREFIX)
 app.include_router(scans.router, prefix=API_PREFIX)

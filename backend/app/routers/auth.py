@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,12 +14,14 @@ from app.services.auth_service import (
     decode_token,
     verify_password,
 )
+from app.services.audit_service import record_audit_event
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login")
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
@@ -28,6 +30,8 @@ async def login(
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
+        record_audit_event(db, action="login_failed", request=request)
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -39,6 +43,10 @@ async def login(
     # Update last login timestamp
     user.last_login = datetime.now(timezone.utc)
     await db.flush()
+    record_audit_event(
+        db, action="login_succeeded", user=user, resource_type="user",
+        resource_id=user.id, request=request,
+    )
 
     token_data = {"sub": user.id, "role": user.role}
     access_token = create_access_token(token_data)
@@ -79,8 +87,16 @@ async def refresh_token(
 
 
 @router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user)):
+async def logout(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Logout endpoint (client discards token; Redis blacklist optional)."""
+    record_audit_event(
+        db, action="logout", user=current_user, resource_type="user",
+        resource_id=current_user.id, request=request,
+    )
     return {"message": "Logged out successfully"}
 
 

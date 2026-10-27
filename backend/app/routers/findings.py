@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_current_user, get_db
+from app.dependencies import get_current_user, get_db, require_role
 from app.models.finding import Finding
 from app.models.user import User
-from app.schemas.finding import FindingRead, FindingStatusUpdate, RemediationDetail
+from app.schemas.finding import FindingAssignment, FindingRead, FindingStatusUpdate, RemediationDetail
 
 router = APIRouter(prefix="/findings", tags=["findings"])
 
@@ -59,7 +59,7 @@ async def update_finding_status(
     finding_id: str,
     payload: FindingStatusUpdate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_role(["admin", "analyst"])),
 ):
     result = await db.execute(select(Finding).where(Finding.id == finding_id))
     finding = result.scalar_one_or_none()
@@ -109,14 +109,20 @@ async def get_remediation(
 @router.post("/{finding_id}/assign", response_model=FindingRead)
 async def assign_finding(
     finding_id: str,
-    payload: dict,
+    payload: FindingAssignment,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_role(["admin", "analyst"])),
 ):
     result = await db.execute(select(Finding).where(Finding.id == finding_id))
     finding = result.scalar_one_or_none()
     if not finding:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found")
-    finding.assigned_to = payload.get("user_id")
+    if payload.user_id is not None:
+        assignee_result = await db.execute(
+            select(User).where(User.id == payload.user_id, User.is_active.is_(True))
+        )
+        if assignee_result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    finding.assigned_to = payload.user_id
     await db.flush()
     return finding

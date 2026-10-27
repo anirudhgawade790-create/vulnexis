@@ -145,6 +145,22 @@ def analyst_user(db_session):
 
 
 @pytest.fixture
+def viewer_user(db_session):
+    user = User(
+        id="test-viewer-000000000000000000001",
+        username="testviewer",
+        email="testviewer@test.local",
+        hashed_password=hash_password("Viewer@1234"),
+        role="viewer",
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
 def admin_token(admin_user):
     return create_access_token({"sub": admin_user.id, "role": admin_user.role})
 
@@ -152,6 +168,11 @@ def admin_token(admin_user):
 @pytest.fixture
 def analyst_token(analyst_user):
     return create_access_token({"sub": analyst_user.id, "role": analyst_user.role})
+
+
+@pytest.fixture
+def viewer_token(viewer_user):
+    return create_access_token({"sub": viewer_user.id, "role": viewer_user.role})
 
 
 def auth_headers(token: str) -> dict:

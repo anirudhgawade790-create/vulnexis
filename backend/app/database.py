@@ -12,10 +12,13 @@ class Base(DeclarativeBase):
 
 
 # Async engine (used by the application)
+_is_sqlite = settings.database_url.startswith("sqlite")
+
 async_engine = create_async_engine(
     settings.database_url,
     echo=False,
-    pool_pre_ping=True,
+    pool_pre_ping=not _is_sqlite,
+    connect_args={"check_same_thread": False} if _is_sqlite else {},
 )
 
 AsyncSessionLocal = async_sessionmaker(

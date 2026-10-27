@@ -76,9 +76,7 @@ def test_create_scan_success(client: TestClient, admin_token, target_id):
     mock_task = MagicMock()
     mock_task.id = "fake-celery-task-id"
 
-    with patch("app.workers.scan_tasks.run_scan") as mock_run_scan:
-        mock_run_scan.delay.return_value = mock_task
-
+    with patch("app.services.scan_service._dispatch_scan", return_value=mock_task):
         response = client.post(
             "/api/v1/scans/",
             json={"target_id": target_id, "scan_type": "network"},
@@ -97,9 +95,7 @@ def test_create_scan_analyst_allowed(client: TestClient, analyst_token, target_i
     mock_task = MagicMock()
     mock_task.id = "fake-celery-task-2"
 
-    with patch("app.workers.scan_tasks.run_scan") as mock_run_scan:
-        mock_run_scan.delay.return_value = mock_task
-
+    with patch("app.services.scan_service._dispatch_scan", return_value=mock_task):
         response = client.post(
             "/api/v1/scans/",
             json={"target_id": target_id, "scan_type": "windows"},
@@ -134,35 +130,77 @@ def test_create_scan_viewer_forbidden(client: TestClient, db_session, target_id)
     assert response.status_code == 403
 
 
+def test_viewer_cannot_cancel_scan(client: TestClient, viewer_token, running_scan_id):
+    response = client.delete(
+        f"/api/v1/scans/{running_scan_id}/cancel",
+        headers=auth_headers(viewer_token),
+    )
+    assert response.status_code == 403
+
+
 def test_create_scan_invalid_target(client: TestClient, admin_token):
     """Creating a scan with a nonexistent target returns 400."""
-    with patch("app.workers.scan_tasks.run_scan") as mock_run_scan:
-        mock_task = MagicMock()
-        mock_task.id = "fake-id"
-        mock_run_scan.delay.return_value = mock_task
-
-        response = client.post(
-            "/api/v1/scans/",
-            json={"target_id": "nonexistent-target-id", "scan_type": "network"},
-            headers=auth_headers(admin_token),
-        )
+    response = client.post(
+        "/api/v1/scans/",
+        json={"target_id": "nonexistent-target-id", "scan_type": "network"},
+        headers=auth_headers(admin_token),
+    )
 
     assert response.status_code == 400
 
 
-def test_create_scan_celery_failure_still_creates_job(client: TestClient, admin_token, target_id):
-    """If Celery dispatch fails, the scan job is still created (queued)."""
-    with patch("app.workers.scan_tasks.run_scan") as mock_run_scan:
-        mock_run_scan.delay.side_effect = Exception("broker unavailable")
-
+def test_create_scan_celery_failure_marks_job_failed(client: TestClient, admin_token, target_id):
+    """A scan that cannot be queued is reported as unavailable, not left queued."""
+    with patch(
+        "app.services.scan_service._dispatch_scan",
+        side_effect=Exception("broker unavailable"),
+    ):
         response = client.post(
             "/api/v1/scans/",
             json={"target_id": target_id, "scan_type": "network"},
             headers=auth_headers(admin_token),
         )
 
-    assert response.status_code == 201
-    assert response.json()["status"] == "queued"
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Scan service is unavailable. Confirm Redis and the scan worker are running, then retry."
+    )
+
+    scans = client.get("/api/v1/scans/", headers=auth_headers(admin_token)).json()
+    failed_scan = next(scan for scan in scans if scan["target_id"] == target_id)
+    assert failed_scan["status"] == "failed"
+    assert "worker are running" in failed_scan["error_message"]
+
+
+def test_dispatch_scan_uses_a_bounded_broker_connection():
+    from app.services.scan_service import _dispatch_scan
+
+    connection = MagicMock()
+    producer = MagicMock()
+    connection.Producer.return_value = producer
+    task = MagicMock()
+
+    with (
+        patch(
+            "app.workers.celery_app.celery_app.connection_for_write",
+            return_value=connection,
+        ),
+        patch("app.workers.scan_tasks.run_scan.apply_async", return_value=task) as apply_async,
+    ):
+        assert _dispatch_scan("scan-id") is task
+
+    connection.ensure_connection.assert_called_once_with(
+        max_retries=0,
+        interval_start=0,
+        interval_step=0,
+        interval_max=0,
+    )
+    apply_async.assert_called_once_with(
+        args=["scan-id"],
+        producer=producer,
+        retry=False,
+    )
+    connection.release.assert_called_once()
 
 
 # ── GET /api/v1/scans ─────────────────────────────────────────────────────────

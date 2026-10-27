@@ -1,0 +1,12 @@
+...............                                                          [100%]
+============================== warnings summary ===============================
+C:\Users\aniru\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\testclient.py:37
+  C:\Users\aniru\AppData\Local\Programs\Python\Python312\Lib\site-packages\starlette\testclient.py:37: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_auth.py::test_login_success
+  E:\sih2.0\backend\tests\conftest.py:60: DeprecationWarning: There is no current event loop
+    asyncio.get_event_loop().run_until_complete(_reset())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+15 passed, 2 warnings in 3.19s

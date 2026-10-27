@@ -108,6 +108,24 @@ def test_update_finding_status(client: TestClient, setup_finding, admin_token):
     assert response.json()["status"] == "acknowledged"
 
 
+def test_viewer_cannot_update_finding_status(client: TestClient, setup_finding, viewer_token):
+    response = client.patch(
+        f"/api/v1/findings/{setup_finding.id}/status",
+        json={"status": "acknowledged"},
+        headers=auth_headers(viewer_token),
+    )
+    assert response.status_code == 403
+
+
+def test_viewer_cannot_assign_finding(client: TestClient, setup_finding, viewer_token):
+    response = client.post(
+        f"/api/v1/findings/{setup_finding.id}/assign",
+        json={"user_id": None},
+        headers=auth_headers(viewer_token),
+    )
+    assert response.status_code == 403
+
+
 def test_get_finding_remediation(client: TestClient, setup_finding, admin_token):
     response = client.get(
         f"/api/v1/findings/{setup_finding.id}/remediation",

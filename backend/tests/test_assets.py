@@ -95,6 +95,20 @@ def test_update_asset_criticality(client: TestClient, sample_asset, admin_token)
     assert response.json()["business_criticality"] == "critical"
 
 
+def test_viewer_cannot_update_asset(client: TestClient, sample_asset, viewer_token):
+    response = client.patch(
+        f"/api/v1/assets/{sample_asset.id}",
+        json={"business_criticality": "critical"},
+        headers=auth_headers(viewer_token),
+    )
+    assert response.status_code == 403
+
+
+def test_viewer_can_read_assets(client: TestClient, sample_asset, viewer_token):
+    response = client.get("/api/v1/assets/", headers=auth_headers(viewer_token))
+    assert response.status_code == 200
+
+
 def test_get_asset_findings(client: TestClient, sample_asset, admin_token):
     response = client.get(
         f"/api/v1/assets/{sample_asset.id}/findings",

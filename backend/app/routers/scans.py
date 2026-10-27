@@ -1,7 +1,7 @@
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,7 @@ from app.dependencies import get_current_user, get_db, require_role
 from app.models.scan_job import ScanJob
 from app.models.user import User
 from app.schemas.scan import ScanJobCreate, ScanJobRead, ScanResultsSummary
+from app.services.audit_service import record_audit_event
 
 router = APIRouter(prefix="/scans", tags=["scans"])
 
@@ -34,14 +35,25 @@ async def list_scans(
 @router.post("/", response_model=ScanJobRead, status_code=status.HTTP_201_CREATED)
 async def create_scan(
     payload: ScanJobCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "analyst"])),
 ):
-    from app.services.scan_service import ScanService
+    from app.services.scan_service import ScanQueueUnavailableError, ScanService
 
     service = ScanService()
     try:
-        return await service.create_scan(payload, current_user, db)
+        scan = await service.create_scan(payload, current_user, db)
+        record_audit_event(
+            db, action="scan_started", user=current_user, resource_type="scan",
+            resource_id=scan.id, details={"target_id": scan.target_id}, request=request,
+        )
+        return scan
+    except ScanQueueUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -62,8 +74,9 @@ async def get_scan(
 @router.delete("/{scan_id}/cancel")
 async def cancel_scan(
     scan_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_role(["admin", "analyst"])),
+    current_user: User = Depends(require_role(["admin", "analyst"])),
 ):
     result = await db.execute(select(ScanJob).where(ScanJob.id == scan_id))
     scan = result.scalar_one_or_none()
@@ -79,6 +92,10 @@ async def cancel_scan(
 
     service = ScanService()
     await service.cancel_scan(scan_id, db)
+    record_audit_event(
+        db, action="scan_cancelled", user=current_user, resource_type="scan",
+        resource_id=scan.id, request=request,
+    )
     return {"message": "Scan cancelled"}
 
 
