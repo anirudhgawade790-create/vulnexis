@@ -1,321 +1,348 @@
-# SIH1684 — Agent-less Windows Vulnerability & Network Scanner
+<div align="center">
 
-SIH1684 is a web platform for authorized network discovery, Windows security
-assessment, vulnerability and finding management, and remediation tracking.
-It combines a React dashboard with a FastAPI API and background scan workers.
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0f0c29,50:302b63,100:24243e&height=200&section=header&text=VulnExis&fontSize=80&fontColor=ffffff&fontAlignY=38&desc=Advanced%20Agentless%20Vulnerability%20%26%20Network%20Scanner&descAlignY=60&descSize=18&animation=fadeIn" width="100%"/>
 
-> **Use responsibly:** Scan only systems and networks that you own or have
-> explicit permission to assess. A scan can generate network traffic and may
-> affect monitored or sensitive systems.
+<br/>
 
-## What it does
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-00b894?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18-61dafb?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Python](https://img.shields.io/badge/Python-3.12-ffd43b?style=for-the-badge&logo=python&logoColor=black)](https://python.org)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![SQLite](https://img.shields.io/badge/SQLite-ready-003b57?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org)
 
-- Discover network hosts and open ports with Nmap.
-- Assess supported Windows systems remotely through WinRM/PowerShell.
-- Correlate scan observations with vulnerabilities, including NVD and CISA KEV
-  information.
-- Review assets, findings, scan history, risk, remediation, and baseline
-  assessment results.
-- Manage users and roles, and inspect administrative audit information.
-- Process scans in the background with Celery and Redis, with scan progress
-  exposed through the API and WebSocket.
+<br/>
 
-## Technology
+> ### 🔥 *Discover. Assess. Remediate. No agents. No BS.*
+> Enterprise-grade security scanning platform — built for **SIH 2024 · Problem Statement 1684**
 
-| Area | Stack |
-|---|---|
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS |
-| API | FastAPI, Pydantic, SQLAlchemy async |
-| Database | PostgreSQL (Docker setup); SQLite is the application default |
-| Background jobs | Celery and Redis |
-| Scanning | Nmap, WinRM/PowerShell |
-| Vulnerability data | NVD API and CISA KEV catalog |
+<br/>
 
-## Requirements
+```
+██╗   ██╗██╗   ██╗██╗     ███╗   ██╗███████╗██╗  ██╗██╗███████╗
+██║   ██║██║   ██║██║     ████╗  ██║██╔════╝╚██╗██╔╝██║██╔════╝
+██║   ██║██║   ██║██║     ██╔██╗ ██║█████╗   ╚███╔╝ ██║███████╗
+╚██╗ ██╔╝██║   ██║██║     ██║╚██╗██║██╔══╝   ██╔██╗ ██║╚════██║
+ ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║███████╗██╔╝ ██╗██║███████║
+  ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝╚══════╝
+```
 
-### Docker setup
+</div>
 
-- Docker Desktop (or Docker Engine) with Docker Compose v2.
+---
 
-### Local application development
+<div align="center">
 
-- Python 3.12
-- Node.js 20+ and npm
-- Docker Compose v2 for the PostgreSQL and Redis services
-- Nmap for real network scans; make sure it is installed and available at the
-  configured `NMAP_PATH`.
-- WinRM access and valid credentials for Windows assessment targets.
+## 💀 What makes VulnExis different?
 
-## Choose one run mode
+| | Other Tools | VulnExis |
+|--|-------------|----------|
+| 🤖 Agent Required | ✅ Yes | ❌ No |
+| 💸 Cost | 💰 Expensive | 🆓 Free & Open |
+| 🪟 Windows Deep Scan | ❌ Limited | ✅ Full WinRM/PS |
+| � CISA KEV Integration | ❌ Rarely | ✅ Built-in |
+| � Explainable Risk | ❌ Black box | ✅ Full breakdown |
+| ⚡ Real-time Progress | ❌ Polling | ✅ SSE + WebSocket |
 
-There are two supported ways to run the application. Do not start the full
-Docker stack and a local backend at the same time: both try to bind port 8000.
+</div>
 
-| Mode | Frontend | Backend | Database and Redis |
-|---|---|---|---|
-| Full Docker | `http://localhost:3000` | `http://localhost:8000` | Docker |
-| Local development | `http://localhost:5173` | `http://localhost:8000` | Docker |
+---
 
-## Full Docker setup
-
-Run these commands from the repository root. In PowerShell, copy the example
-environment file with `Copy-Item`:
+## ⚡ 60-Second Setup
 
 ```powershell
+# 1. Clone
+git clone https://github.com/your-org/vulnexis.git && cd vulnexis
+
+# 2. Backend — Terminal 1
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --port 8000
+
+# 3. Frontend — Terminal 2
+cd frontend
+npm install && npm run dev
+```
+
+### 🌐 Open → `http://localhost:5173`
+
+| 👑 Admin | 🔍 Analyst | 👁️ Viewer |
+|----------|-----------|----------|
+| `admin` / `Admin@1234` | `analyst` / `Analyst@1234` | `viewer` / `Viewer@1234` |
+
+> No PostgreSQL needed. SQLite runs out of the box. DEMO_MODE auto-seeds everything.
+
+---
+
+## 🎯 Features that hit different
+
+<table>
+<tr>
+<td width="50%">
+
+### 🌐 Network Intelligence
+- Nmap-powered host discovery
+- Port scanning with service fingerprinting
+- Risky service detection (RDP, Telnet, SMB)
+- Network Risk Map visualization
+
+</td>
+<td width="50%">
+
+### 🪟 Windows Deep Dive
+- Agentless via WinRM/PowerShell
+- Missing patches detection
+- Defender, Firewall, SMB, RDP checks
+- Software inventory
+- Password policy assessment
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🔴 Vulnerability Intel
+- NVD API v2.0 integration
+- CISA Known Exploited Vulnerabilities (KEV)
+- CVSS v3 scoring & vectors
+- CWE classification
+
+</td>
+<td width="50%">
+
+### 🧠 Smart Risk Engine
+- Explainable risk scores (0–10)
+- Factors: CVSS + KEV + exposure + criticality
+- AI Insights (rule-based, no hallucinations)
+- Change detection between scans
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### �️ Remediation
+- Step-by-step PowerShell scripts
+- Admin warning on every command block
+- Effort estimation badges
+- One-click verify & close
+
+</td>
+<td width="50%">
+
+### � Compliance
+- CIS Windows Server benchmark
+- NIST CSF framework
+- Stacked compliance charts
+- Per-control pass/fail/unknown
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                   🌐 BROWSER                     │
+│        React 18  •  TypeScript  •  Vite          │
+│    Tailwind CSS  •  shadcn/ui  •  Recharts       │
+└───────────────────────┬─────────────────────────┘
+                        │  REST / SSE / WebSocket
+┌───────────────────────▼─────────────────────────┐
+│               ⚡ FASTAPI BACKEND                 │
+│     JWT Auth  •  Rate Limiting  •  Audit Log     │
+│         SQLAlchemy Async  •  Pydantic v2         │
+└────────┬──────────────────────────┬──────────────┘
+         │                          │
+┌────────▼────────┐      ┌──────────▼──────────┐
+│   🗄️ DATABASE   │      │   ⚙️ CELERY WORKER   │
+│ SQLite / Postgres│      │   Background Scans   │
+└─────────────────┘      └──────────┬───────────┘
+                                    │
+          ┌─────────────────────────┼────────────────────┐
+          │                         │                    │
+   ┌──────▼──────┐         ┌────────▼────────┐  ┌───────▼──────┐
+   │  🌐 NETWORK  │         │  🪟 WINDOWS      │  │  🔍 CVE       │
+   │   SCANNER   │         │   SCANNER       │  │  CORRELATOR  │
+   │    (Nmap)   │         │  (WinRM + PS)   │  │  NVD + KEV   │
+   └─────────────┘         └─────────────────┘  └──────────────┘
+```
+
+---
+
+## 📁 Project Structure
+
+```
+vulnexis/
+│
+├── � backend/
+│   ├── app/
+│   │   ├── � routers/        ← 11 API route files
+│   │   ├── �️  models/         ← 8 SQLAlchemy models
+│   │   ├── � schemas/        ← Pydantic schemas
+│   │   ├── ⚙️  services/       ← Risk engine, insights, remediation
+│   │   ├── � scanners/       ← Nmap, WinRM, CVE correlator, orchestrator
+│   │   ├── � workers/        ← Celery tasks
+│   │   └── 🌱 demo/           ← Deterministic demo seeder
+│   ├── alembic/               ← DB migrations
+│   ├── tests/                 ← 10 pytest test files
+│   └── Dockerfile
+│
+├── ⚛️  frontend/
+│   ├── src/
+│   │   ├── � api/            ← Axios API client (11 modules)
+│   │   ├── 🧩 components/     ← 40+ UI components
+│   │   ├── � pages/          ← 13 page components
+│   │   ├── 🪝 hooks/          ← React Query hooks
+│   │   ├── 🏪 store/          ← Zustand auth store
+│   │   └── � types/          ← TypeScript interfaces
+│   └── vite.config.ts
+│
+├── 🐳 docker-compose.yml       ← Full stack
+├── 🐳 docker-compose.dev.yml   ← Dev (DB + Redis only)
+└── ⚙️  .env.example
+```
+
+---
+
+## 🐳 Docker Setup
+
+```powershell
+# Copy & configure env
 Copy-Item .env.example .env
-```
+# Edit .env: set POSTGRES_PASSWORD, SECRET_KEY
+# Update DATABASE_URL host to 'db' (not localhost)
 
-Edit `.env` before starting the services:
-
-1. Set a strong `POSTGRES_PASSWORD`.
-2. Set `SECRET_KEY` to a new, private random value (at least 32 characters).
-3. Set `DATABASE_URL` to use the Docker service hostname `db`, not `localhost`:
-
-   ```text
-   postgresql+asyncpg://sih1684:<POSTGRES_PASSWORD>@db:5432/sih1684
-   ```
-
-   Replace `<POSTGRES_PASSWORD>` with the same value configured for
-   `POSTGRES_PASSWORD`.
-4. Keep `REDIS_URL`, `CELERY_BROKER_URL`, and `CELERY_RESULT_BACKEND` pointed
-   at `redis://redis:6379/...` when the backend and worker run in Docker.
-5. `NVD_API_KEY` is optional and can be set for NVD requests.
-
-Start the stack and apply database migrations:
-
-```powershell
+# Launch everything
 docker compose up -d --build
+
+# Migrate + seed
 docker compose exec backend alembic upgrade head
-```
-
-To load sample users, assets, scans, and findings, run the idempotent demo
-seeder:
-
-```powershell
 docker compose exec backend python -m app.demo.seed_demo
 ```
 
-Alternatively, set `DEMO_MODE=true` before starting the backend to create
-tables and seed demo data at application startup. For a normal migrated
-database, leave it `false`.
+🌍 Open **http://localhost:3000** · API Docs **http://localhost:8000/docs**
 
-Open:
+---
 
-- Frontend: <http://localhost:3000>
-- API documentation: <http://localhost:8000/docs>
-- Health check: <http://localhost:8000/health>
+## 🔌 API Reference
 
-Useful Docker commands:
+> 📖 Full interactive docs at **`http://localhost:8000/docs`**
 
-```powershell
-docker compose ps
-docker compose logs -f backend
-docker compose logs -f worker
-docker compose down
+```
+/api/v1/
+├── 🔐 auth/         login · refresh · logout · me
+├── 👤 users/        CRUD · role management
+├── 🎯 targets/      scope management
+├── 🔍 scans/        launch · cancel · SSE progress · results · compare
+├── 💻 assets/       inventory · findings · history
+├── 🐛 vulnerabilities/  CVE list · KEV · sync from NVD
+├── 🚨 findings/     list · status update · assign · remediation
+├── 🛠️  remediation/  prioritized plan · verify
+├── 📋 baseline/     policies · assess · results
+├── 📊 dashboard/    summary · trends · insights · top-risks
+└── 📡 /ws/scan/{id}  WebSocket live progress
 ```
 
-`docker compose down` stops and removes the containers but keeps the named
-database volume. Avoid `docker compose down -v` unless you deliberately want to
-delete the database data.
+---
 
-## Local development setup
+## ⚙️ Environment Variables
 
-This mode runs only PostgreSQL and Redis in Docker. The API, Celery worker, and
-Vite frontend run locally. First copy `.env.example` to `.env` in the
-repository root as described above. The Compose file reads that root file.
-Because the backend loads `.env` from its current working directory, also
-create a backend-local copy:
+```bash
+# .env — copy from .env.example
+
+DATABASE_URL=sqlite+aiosqlite:///./sih1684.db   # SQLite default
+SECRET_KEY=your-secret-min-32-chars              # 🔴 Change this!
+DEMO_MODE=true                                   # Auto-seed on startup
+CORS_ORIGINS=["http://localhost:5173"]           # JSON array format
+NVD_API_KEY=                                     # Optional, higher rate limits
+NMAP_PATH=/usr/bin/nmap                          # Path to nmap binary
+```
+
+---
+
+## 🧪 Tests
 
 ```powershell
+# Backend — 10 test files, ~60% coverage
 cd backend
-Copy-Item ..\.env .env
-```
-
-Edit `backend\.env` for the host-side connection values:
-
-- `DATABASE_URL` should use `localhost:5432` (not `db`), for example:
-  `postgresql+asyncpg://sih1684:<POSTGRES_PASSWORD>@localhost:5432/sih1684`.
-- Redis URLs should use `localhost:6379`.
-- Ensure the password in `DATABASE_URL` matches `POSTGRES_PASSWORD`.
-
-Start the supporting services from the repository root:
-
-```powershell
-docker compose -f docker-compose.dev.yml up -d
-```
-
-In a new terminal, set up and start the backend:
-
-```powershell
-cd backend
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt -r requirements-dev.txt
-alembic upgrade head
-python -m app.demo.seed_demo
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Run the Celery worker in another terminal. Activate the same virtual
-environment and run:
-
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-celery -A app.workers.celery_app worker --loglevel=info --pool=solo
-```
-
-Run the frontend in a third terminal:
-
-```powershell
-cd frontend
-npm ci
-npm run dev
-```
-
-Open <http://localhost:5173>. Vite proxies `/api` and `/ws` requests to
-`http://localhost:8000`.
-
-### macOS/Linux command equivalents
-
-Use `cp .env.example .env`, activate the virtual environment with
-`source .venv/bin/activate`, and use `docker compose` as shown above. The
-backend and frontend commands are otherwise the same.
-
-## Configuration
-
-Settings are loaded from `.env` (see `.env.example`). Important settings:
-
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | SQLAlchemy database connection. Use host `db` inside Docker and `localhost` for local app processes. |
-| `POSTGRES_PASSWORD` | Password for the PostgreSQL container; keep it consistent with `DATABASE_URL`. |
-| `REDIS_URL` | Redis connection for application access. |
-| `CELERY_BROKER_URL` | Redis database used as the Celery broker. |
-| `CELERY_RESULT_BACKEND` | Redis database used for Celery results. |
-| `SECRET_KEY` | JWT signing secret. Replace the example value; never use it in production. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access-token lifetime. |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh-token lifetime. |
-| `CORS_ORIGINS` | Comma-separated allowed browser origins. |
-| `DEMO_MODE` | When `true`, create tables and seed demo data at backend startup. |
-| `NVD_API_KEY` | Optional NVD API key. |
-| `OPENAI_API_KEY` | Optional key for integrations that use OpenAI. |
-| `NMAP_PATH` | Path to the Nmap executable. The Docker image installs it at `/usr/bin/nmap`. |
-| `DEFAULT_SCAN_TIMEOUT` | Default scan timeout in seconds. |
-| `MAX_CONCURRENT_SCANS` | Maximum concurrent scans setting. |
-
-For local development, the default database URL in application settings uses
-SQLite if `DATABASE_URL` is not set. The Docker Compose setup provides
-PostgreSQL. For the settings used by the app, the timeout variable is
-`DEFAULT_SCAN_TIMEOUT`.
-
-## Demo accounts
-
-The demo seeder creates these sample accounts:
-
-| Role | Username | Password |
-|---|---|---|
-| Admin | `admin` | `Admin@1234` |
-| Analyst | `analyst` | `Analyst@1234` |
-| Viewer | `viewer` | `Viewer@1234` |
-
-These are public demo credentials. Do not use them outside a local demo
-environment; change or remove them before exposing an instance.
-
-## Tests and frontend checks
-
-Run backend tests from the `backend` directory:
-
-```powershell
 pytest --cov=app tests/ -q
-```
 
-Run frontend checks from the `frontend` directory:
-
-```powershell
-npm run lint
+# Frontend — type check + build
+cd frontend
 npm run build
 ```
 
-## API overview
+---
 
-The API is versioned under `/api/v1`. Interactive request and response
-documentation is available at `/docs` while the backend is running. Main
-resource groups include:
+## 🐛 Common Issues
 
-- `/auth`, `/users`, `/admin`
-- `/targets`, `/scans`, `/assets`
-- `/vulnerabilities`, `/findings`, `/remediation`
-- `/baseline`, `/dashboard`
-- `/ws/scan/{scan_job_id}` for scan progress
-
-## Troubleshooting
-
-### Port 8000 is already in use (`WinError 10048`)
-
-Another process is already listening on the backend port. This commonly
-happens when a local Uvicorn process is still running while the Docker backend
-is started, or when two backend servers are started.
-
-Find the process in PowerShell:
+<details>
+<summary>🔴 <b>Port 8000 already in use</b></summary>
 
 ```powershell
-Get-NetTCPConnection -LocalPort 8000 -State Listen |
-  Select-Object LocalAddress, LocalPort, OwningProcess
-Get-Process -Id <PID>
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
 ```
+</details>
 
-Stop it only after confirming it is the old backend process:
+<details>
+<summary>🔴 <b>Login failed</b></summary>
 
 ```powershell
-Stop-Process -Id <PID>
+# Check backend health
+curl http://localhost:8000/health
+# → {"status":"ok"}
 ```
+Backend + frontend dono chal rahe hain na? Dono alag terminals mein chahiye.
+</details>
 
-Choose either full Docker or local-backend mode above. To run the local API on
-another port, start Uvicorn with `--port 8001` and update the Vite proxy target
-in `frontend/vite.config.ts` to `http://localhost:8001`.
+<details>
+<summary>🔴 <b>CORS error in browser</b></summary>
 
-### Backend cannot connect to PostgreSQL
-
-Check that the `db` service is healthy with `docker compose ps` and verify the
-host in `DATABASE_URL`: use `db` from containers, `localhost` from a local
-process. Confirm the database password matches `POSTGRES_PASSWORD`, then
-apply migrations with `alembic upgrade head` (or the Docker command above).
-
-### Scans remain queued or do not start
-
-Confirm Redis is running and that the Celery broker/result URLs use the correct
-hostname for the selected run mode. Also confirm the Celery worker is running
-and check its logs.
-
-### Browser cannot reach the API
-
-In local development, keep the backend on port 8000 because Vite's `/api` and
-`/ws` proxies target that port by default. In full Docker mode, check that the
-backend container is healthy and port 8000 is not occupied by another process.
-
-## Repository layout
-
-```text
-backend/
-  app/
-    routers/       API endpoints
-    schemas/       Request and response models
-    models/        Database models
-    services/      Business logic
-    scanners/      Network and Windows scan pipeline
-    workers/       Celery app and scan tasks
-    demo/          Demo data seeder
-  alembic/         Database migrations
-  tests/           Backend tests
-frontend/
-  src/
-    api/           API client functions
-    components/    Shared UI components
-    pages/         Application pages
-docker-compose.yml       Full stack
-docker-compose.dev.yml   Local-development dependencies
+`.env` mein check karo:
+```bash
+CORS_ORIGINS=["http://localhost:5173"]   # JSON array, quotes required
 ```
-#   v u l n e x i s  
- #   v u l n e x i s  
- 
+</details>
+
+<details>
+<summary>🔴 <b>Scans stuck in queued</b></summary>
+
+```powershell
+# Redis + Celery worker chahiye
+docker compose -f docker-compose.dev.yml up -d redis
+cd backend
+celery -A app.workers.celery_app worker --loglevel=info --pool=solo
+```
+</details>
+
+---
+
+<div align="center">
+
+## 🏆 Built for Smart India Hackathon 2024
+
+**Problem Statement · SIH1684**
+
+*Agentless Windows Vulnerability and Network Scanner*
+
+---
+
+### 📊 Project Stats
+
+![Lines of Code](https://img.shields.io/badge/Lines%20of%20Code-15000%2B-blueviolet?style=for-the-badge)
+![API Endpoints](https://img.shields.io/badge/API%20Endpoints-35%2B-orange?style=for-the-badge)
+![UI Components](https://img.shields.io/badge/UI%20Components-40%2B-pink?style=for-the-badge)
+![Test Files](https://img.shields.io/badge/Test%20Files-10-green?style=for-the-badge)
+
+---
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:24243e,50:302b63,100:0f0c29&height=120&section=footer" width="100%"/>
+
+*Made with 💜 | Scan responsibly*
+
+</div>
